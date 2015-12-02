@@ -13,7 +13,7 @@ class bot():
         an optional caption or list of captions, and a list of the zulip streams it should be active in.
         it then posts a caption and a randomly selected gif in response to zulip messages.
      '''
-    def __init__(self, zulip_username, zulip_api_key, key_word, subscribed_streams=[], zulip_site=None):
+    def __init__(self, zulip_username, zulip_api_key, key_word, subscribed_streams=[], no_fomo_stream='', zulip_site=None):
         self.username = zulip_username
         self.api_key = zulip_api_key
         self.site = zulip_site
@@ -22,7 +22,7 @@ class bot():
         self.client = zulip.Client(zulip_username, zulip_api_key, site=zulip_site)
         self.subscriptions = self.subscribe_to_streams()
         self.rsvp = rsvp.RSVP(key_word)
-
+        self.no_fomo_stream = no_fomo_stream
 
     @property
     def streams(self):
@@ -31,7 +31,7 @@ class bot():
         if not self.subscribed_streams:
             streams = [{'name': stream['name']} for stream in self.get_all_zulip_streams()]
             return streams
-        else: 
+        else:
             streams = [{'name': stream} for stream in self.subscribed_streams]
             return streams
 
@@ -61,7 +61,7 @@ class bot():
 
         if message:
             self.send_message(message)
-            
+
     def send_message(self, msg):
         ''' Sends a message to zulip stream or user
         '''
@@ -77,6 +77,14 @@ class bot():
             "content": msg['body']
         })
 
+        if self.no_fomo_stream:
+            self.client.send_message({
+                "type": msg['type'],
+                "subject": msg_to + '/' + msg["subject"],
+                "to": self.no_fomo_stream,
+                "content": msg['body']
+            })
+
 
     def main(self):
         ''' Blocking call that runs forever. Calls self.respond() on every event received.
@@ -85,14 +93,14 @@ class bot():
 
 
 ''' The Customization Part!
-    
+
     Create a zulip bot under "settings" on zulip.
     Zulip will give you a username and API key
-    key_word is the text in Zulip you would like the bot to respond to. This may be a 
+    key_word is the text in Zulip you would like the bot to respond to. This may be a
         single word or a phrase.
     search_string is what you want the bot to search giphy for.
     caption may be one of: [] OR 'a single string' OR ['or a list', 'of strings']
-    subscribed_streams is a list of the streams the bot should be active on. An empty 
+    subscribed_streams is a list of the streams the bot should be active on. An empty
         list defaults to ALL zulip streams
 
 '''
@@ -100,10 +108,11 @@ class bot():
 zulip_username = os.environ['ZULIP_RSVP_EMAIL']
 zulip_api_key = os.environ['ZULIP_RSVP_KEY']
 zulip_site = os.getenv('ZULIP_RSVP_SITE', None)
-key_word = 'rsvp'
+key_word = 'fakersvp'
 
 sandbox_stream =  os.getenv('ZULIP_RSVP_SANDBOX_STREAM', 'test-bot')
+no_fomo_stream = os.getenv('ZULIP_NO_FOMO_STREAM', 'RSVPs')
 subscribed_streams = [sandbox_stream]
 
-new_bot = bot(zulip_username, zulip_api_key, key_word, subscribed_streams, zulip_site=zulip_site)
+new_bot = bot(zulip_username, zulip_api_key, key_word, subscribed_streams, no_fomo_stream, zulip_site=zulip_site)
 new_bot.main()
